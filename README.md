@@ -67,7 +67,7 @@ Please download and put the checkpoints under: `outputs/checkpoints/`, `pretrain
 
 ## Citation
 
-If you find our work helps, please cite our paper.
+If you find our work helps, please cite our paper.  
 
 ```bibtex
 @inproceedings{chen2023real20m,
