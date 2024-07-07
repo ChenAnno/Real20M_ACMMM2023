@@ -88,4 +88,5 @@ This repo is maintained by [Yanzhe Chen](https://github.com/ChenAnno). Questions
 Our code references the following projects. Many thanks to the authors.
 
 - [ALBEF](https://github.com/salesforce/ALBEF)
+- [ALPRO](https://github.com/salesforce/ALPRO)
 - [X-CLIP](https://github.com/microsoft/VideoX/tree/master/X-CLIP)
