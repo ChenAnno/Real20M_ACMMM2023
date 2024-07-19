@@ -99,21 +99,19 @@ class DocAttentionFusionModel(nn.Module):
         super(DocAttentionFusionModel, self).__init__()
         # doc_text_dim, query_text_dim, doc_image_dim
 
-        # 换成combiner
+        # The Combiner model performs better, but its runtime is too long. ABANDON
         # self.attention_pooling = Combiner(emb_dim=emb_dim, projection_dim=2 * emb_dim, hidden_dim=4 * emb_dim)
         self.attention_pooling = AttentionPooling(emb_dim=512, emb_num=2)  # emb_dim改成512
 
-        # 换成X-CLIP的帧融合
+        # Frame fusion like X-CLIP performs much better than origin VideoAttentionPooling
+        # Time cost also acceptable
         self.video_attention_pooling = MultiFrameIntegrationTransformer()
-        # TODO
         # self.video_attention_pooling = VideoAttentionPooling(hidden_dim=input_dims[2])
 
     def forward(self, emb_list, tb_tools=None, is_train=True, is_fusion=True):
         # text_emb, images_emb
         video_emb = emb_list[1]
-        # video_emb = video_emb.view(text_emb.shape[0], -1, video_emb.shape[1])  # B, T, H
         if not is_fusion:
-            # video_emb = video_emb.view(1, -1, video_emb.shape[1])  # 1, T, H
             video_emb = video_emb.view(video_emb.shape[0], -1, video_emb.shape[1])
         else:
             video_emb = video_emb.view(emb_list[0].shape[0], -1, video_emb.shape[1])  # B, T, H
@@ -129,10 +127,6 @@ class DocAttentionFusionModel(nn.Module):
 
         embs = torch.stack([text_emb, video_emb], 1)
         emb = F.normalize(self.attention_pooling(embs, tb_tools, is_train))  # [batch, 128]
-        # emb = self.attention_pooling(video_emb, text_emb)
-        # TODO
-        # emb = F.normalize(text_emb + video_emb)
-
         return emb, text_emb, video_emb
 
 
