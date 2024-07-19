@@ -2,7 +2,7 @@
 
 This is the source code of our ACM MM 2023 paper "[Real20M: A Large-scale E-commerce Dataset for Cross-domain Retrieval](https://hexiangteng.github.io/papers/ACM%20MM%202023%20Real20M.pdf)".
 
-![image](imgs/approach.png)
+![image](imgs/framework.png)
 
 ## Installation
 
@@ -25,7 +25,7 @@ We release the entire section of the Real400K dataset and conducted experimental
 
    ```unicode
    Dataset/
-   ├─ Real400K/
+   ├─ Real20M|Real400K/
    │  ├─ query/
    │  ├─ goods/
    │  │  ├─ images
@@ -40,11 +40,28 @@ We release the entire section of the Real400K dataset and conducted experimental
 
 ## Quick Start
 
-The training code is built on PyTorch with DistributedDataParallel (DDP). We pretrain the framework on 2 nodes, each with 8 V100 GPUs (10 epochs in about two days).
+- **Dataset**: Contains the data, split files and ckpts.
+- **datasets**: Contains loading files for the dataset.
+- **evaluate**: Consisting of evaluation scripts for rapid retrieval of massive samples, ≈ 20 minutes to run on a V100.
+- **losses**: Includes the loss functions used in this project as well as other commonly used loss functions.
+- **models**: Includes the models used in this project as well as related models that may be compared.
+- **utils**: Comprises of utility functions that support various tasks within the project.
+- ```evaluation.py```: Evaluation code, due to the large dataset size, features are stored by writing to files.
+- ```main_cross_domain_emb.py```: Entry for training and testing, with the logic in ```main()``` as follows.
+  - Basic settings
+  - Initialize models
+  - Optionally resume from a checkpoint
+  - Data loading
+  - TESTING (Exit after running the test code if args.evaluate==True)
+  - Initialize losses, optimizers, and grad_amp
+  - TRAINING LOOP
+  - Terminate the DDP process
 
-The evaluation code, consisting of a series of scripts, is designed to ensure rapid retrieval of massive samples, taking approximately 20 minutes to run on a V100.
+Please note:
 
-Please note to **complete the path** at the beginning of the following script files.
+1. Please note to **complete the path** at the beginning of the following script files.
+2. The training code is built on PyTorch with DistributedDataParallel (**DDP**).
+3. We pretrain the framework on 2 nodes, each with 8 V100 GPUs (10 epochs in about two days).
 
 ```bash
 # Train the query-guided cross-domain retrieval framework.
@@ -67,7 +84,7 @@ Please download and put the checkpoints under: `outputs/checkpoints/`, `pretrain
 
 ## Citation
 
-If you find our work helps, please cite our paper.  
+If you find our work helps, please cite our paper.
 
 ```bibtex
 @inproceedings{chen2023real20m,
@@ -88,5 +105,4 @@ This repo is maintained by [Yanzhe Chen](https://github.com/ChenAnno). Questions
 Our code references the following projects. Many thanks to the authors.
 
 - [ALBEF](https://github.com/salesforce/ALBEF)
-- [ALPRO](https://github.com/salesforce/ALPRO)
 - [X-CLIP](https://github.com/microsoft/VideoX/tree/master/X-CLIP)
