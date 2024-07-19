@@ -141,7 +141,7 @@ def init_models(args):
     return doc_text_model, doc_image_model, doc_fusion_model, text_generation_model
 
 
-# dataloader initialization (return [test_loader, test_sampler] or [train_loader, train_sampler])
+# Dataloader initialization (return [test_loader, test_sampler] or [train_loader, train_sampler])
 def init_dataloaders(args, epoch=0):
     train_transform, val_transform = get_transforms(args)
     
