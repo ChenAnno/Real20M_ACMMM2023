@@ -102,7 +102,11 @@ This repo is maintained by [Yanzhe Chen](https://github.com/ChenAnno). Questions
 
 ## Acknowledgements
 
-Our code references the following projects. Many thanks to the authors.
+Our codes reference the following projects. Many thanks to the authors!
 
 - [ALBEF](https://github.com/salesforce/ALBEF)
+- [ALPRO](https://github.com/salesforce/ALPRO)
+- [CLIP](https://github.com/openai/CLIP)
+- [CLIP-Chinese](https://github.com/yangjianxin1/CLIP-Chinese)
+- [OpenFashionCLIP](https://github.com/aimagelab/open-fashion-clip)
 - [X-CLIP](https://github.com/microsoft/VideoX/tree/master/X-CLIP)
