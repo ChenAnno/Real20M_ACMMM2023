@@ -15,7 +15,7 @@ source activate Real
 
 ![image](imgs/dataset.png)
 
-We release the entire section of the Real400K dataset and conducted experimental comparisons for [our paper](https://hexiangteng.github.io/papers/ACM%20MM%202023%20Real20M.pdf) on this dataset. To facilitate downloading of this dataset in China, we provide a **Baidu Netdisk download link**. Please note:
+We release the entire section of the Real400K dataset and conducted experimental comparisons for [our paper](https://hexiangteng.github.io/papers/ACM%20MM%202023%20Real20M.pdf) on this dataset. To facilitate downloading of this dataset, we provide a **Baidu Netdisk download link**. Please note:
 
 1. Regarding dataset download, please sign the [Release Agreement](Release_Agreement.pdf) and send it to [Yanzhe Chen](chenyanzhe@stu.pku.edu.cn). By sending the application, you are agreeing and acknowledging that you have read and understand the [notice](notice.pdf). We will reply with the file and the corresponding guidelines right after we receive your request!
 
