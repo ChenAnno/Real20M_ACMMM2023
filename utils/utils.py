@@ -23,6 +23,20 @@ def distribute_model(model, local_rank, train_mode=True, broadcast_buffers=True)
     return model
 
 
+def compute_relevance_loss(loss_fn, query_emb, target_emb, prefix, args, GLOBAL_STEP, is_xbm=False):
+    return loss_fn(
+        query_emb,
+        target_emb,
+        {
+            "tb_writer": args.tb_writer,
+            "global_step": GLOBAL_STEP,
+            "local_rank": args.local_rank,
+            "prefix": prefix,
+        },
+        is_xbm=is_xbm,
+    )
+
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
 
@@ -67,10 +81,10 @@ class ProgressMeter(object):
 
 def adjust_learning_rate(optimizer, epoch, lr_factor, args):
     """Sets the learning rate to the initial LR decayed by 10 every 30 epochs"""
-    global lr
-    lr = args.lr * (0.1 ** (epoch // args.decay_epochs))
+    global LR
+    LR = args.lr * (0.1 ** (epoch // args.decay_epochs))
     for param_group in optimizer.param_groups:
-        param_group['lr'] = lr * lr_factor
+        param_group['lr'] = LR * lr_factor
 
 
 def intersect(list1, list2):
