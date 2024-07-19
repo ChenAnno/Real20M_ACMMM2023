@@ -10,6 +10,19 @@ def save_checkpoint(state, checkpoints):
     torch.save(state, filename)
 
 
+def distribute_model(model, local_rank, train_mode=True, broadcast_buffers=True):
+    model.cuda(local_rank)
+    model = torch.nn.parallel.DistributedDataParallel(
+        module=model, device_ids=[local_rank], broadcast_buffers=broadcast_buffers,
+        find_unused_parameters=True
+    )
+    if train_mode:
+        model.train()
+    else:
+        model.eval()
+    return model
+
+
 class AverageMeter(object):
     """Computes and stores the average and current value"""
 
