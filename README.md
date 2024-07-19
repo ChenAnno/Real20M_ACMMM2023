@@ -42,7 +42,7 @@ We release the entire section of the Real400K dataset and conducted experimental
 
 - **Dataset**: Contains the data, split files and ckpts.
 - **datasets**: Contains loading files for the dataset.
-- **evaluate**: Consisting of evaluation scripts for rapid retrieval of massive samples, ≈ 20 minutes to run on a V100.
+- **evaluate**: Consisting of evaluation scripts for rapid retrieval, ≈ 20 minutes to run on a V100.
 - **losses**: Includes the loss functions used in this project as well as other commonly used loss functions.
 - **models**: Includes the models used in this project as well as related models that may be compared.
 - **utils**: Comprises of utility functions that support various tasks within the project.
