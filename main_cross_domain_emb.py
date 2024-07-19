@@ -22,7 +22,7 @@ LR, GLOBAL_STEP = 0, 0
 
 # Argument parsing
 def parse_args():
-    parser = argparse.ArgumentParser(description='Framework Training')
+    parser = argparse.ArgumentParser(description='Framework Training & Testing')
     
     # File paths
     parser.add_argument('--local_rank', type=int, default=0, help='local_rank')
