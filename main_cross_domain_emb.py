@@ -22,7 +22,7 @@ LR, GLOBAL_STEP = 0, 0
 
 # Argument parsing
 def parse_args():
-    parser = argparse.ArgumentParser(description='Framework Training & Testing')
+    parser = argparse.ArgumentParser(description='Framework Training and Testing')
     
     # File paths
     parser.add_argument('--local_rank', type=int, default=0, help='local_rank')
@@ -121,12 +121,12 @@ def init_save_directories(args):
 # Model initialization
 def init_models(args):
     doc_text_model = models.__dict__["RoBERTa_CLIP"](fp16=args.mixed_precision_training)
-    doc_image_model = models.__dict__["Vitb16"](fp16=args.mixed_precision_training)
+    doc_vision_model = models.__dict__["Vitb16"](fp16=args.mixed_precision_training)
     doc_fusion_model = models.__dict__["DocAttentionFusionModel"](
         input_dims=[
             doc_text_model.output_size,
             doc_text_model.output_size,
-            doc_image_model.output_size,
+            doc_vision_model.output_size,
         ],
         emb_dim=args.embedding_size,
     )
@@ -134,11 +134,11 @@ def init_models(args):
         embedding_size=args.embedding_size, fp16=args.mixed_precision_training
     )
     doc_text_model = distribute_model(doc_text_model, args.local_rank, args.finetune, False)
-    doc_image_model = distribute_model(doc_image_model, args.local_rank, args.finetune)
+    doc_vision_model = distribute_model(doc_vision_model, args.local_rank, args.finetune)
     doc_fusion_model = distribute_model(doc_fusion_model, args.local_rank, args.finetune)
     text_generation_model = distribute_model(text_generation_model, args.local_rank, args.finetune)
 
-    return doc_text_model, doc_image_model, doc_fusion_model, text_generation_model
+    return doc_text_model, doc_vision_model, doc_fusion_model, text_generation_model
 
 
 # Dataloader initialization (return [test_loader, test_sampler] or [train_loader, train_sampler])
@@ -181,7 +181,7 @@ def init_optimizers(args, models):
     text_optimizer = torch.optim.Adam(
         params=[{"params": doc_text_model.module.parameters()}], lr=args.lr * args.text_lr_factor,
     )
-    image_optimizer = torch.optim.Adam(
+    vision_optimizer = torch.optim.Adam(
         params=[{"params": doc_image_model.module.parameters()}], lr=args.lr * args.image_lr_factor
     )
     fusion_optimizer = torch.optim.Adam(
@@ -198,7 +198,7 @@ def init_optimizers(args, models):
     )
     return (
         text_optimizer,
-        image_optimizer,
+        vision_optimizer,
         fusion_optimizer,
         video_fusion_optimizer,
         text_generation_optimizer,
@@ -242,9 +242,9 @@ def train_one_epoch(train_loader, model_list, loss_list, optimizer_list, grad_am
         prefix="Epoch: [{}]".format(epoch),
     )
 
-    [doc_text_model, doc_image_model, doc_fusion_model, text_generation_model] = model_list
+    [doc_text_model, doc_vision_model, doc_fusion_model, text_generation_model] = model_list
     [text_relevance_loss_1, text_relevance_loss_2, text_relevance_loss_3, itc_itm_criterion, text_generate_criterion] = loss_list
-    [text_optimizer, image_optimizer, fusion_optimizer, video_fusion_optimizer, text_generation_optimizer] = optimizer_list
+    [text_optimizer, vision_optimizer, fusion_optimizer, video_fusion_optimizer, text_generation_optimizer] = optimizer_list
 
     end = time.time()
     for i, (text_input, title_input, images, pids, pid_sources) in enumerate(train_loader):
@@ -258,14 +258,13 @@ def train_one_epoch(train_loader, model_list, loss_list, optimizer_list, grad_am
         images = images.cuda(args.local_rank)
 
         # compute output
-        text_emb = doc_text_model(text_input)
+        query_emb = doc_text_model(text_input)
         title_emb = doc_text_model(title_input)
-        images_emb = doc_image_model(images)
-        images_emb_d = images_emb.detach()
-        images_emb_d.requires_grad = args.finetune
-        query_emb = text_emb
+        vision_emb = doc_vision_model(images)
+        vision_emb_d = vision_emb.detach()
+        vision_emb_d.requires_grad = args.finetune
         fusion_emb, t_emb, v_emb = doc_fusion_model(
-            [title_emb, images_emb_d],
+            [title_emb, vision_emb_d],
             {
                 "tb_writer": args.tb_writer,
                 "global_step": GLOBAL_STEP,
@@ -295,11 +294,11 @@ def train_one_epoch(train_loader, model_list, loss_list, optimizer_list, grad_am
         if args.mixed_precision_training:
             grad_amp.scale(loss_total).backward()
             if args.finetune:
-                images_emb_grad = images_emb_d.grad
-                images_emb.backward(images_emb_grad)
-                grad_amp.unscale_(image_optimizer)
-                clip_grad_norm_(doc_image_model.parameters(), max_norm=5, norm_type=2)
-                grad_amp.step(image_optimizer)
+                vision_emb_grad = vision_emb_d.grad
+                vision_emb.backward(vision_emb_grad)
+                grad_amp.unscale_(vision_optimizer)
+                clip_grad_norm_(doc_vision_model.parameters(), max_norm=5, norm_type=2)
+                grad_amp.step(vision_optimizer)
             grad_amp.unscale_(text_optimizer)
             grad_amp.unscale_(fusion_optimizer)
             grad_amp.unscale_(video_fusion_optimizer)
@@ -313,10 +312,10 @@ def train_one_epoch(train_loader, model_list, loss_list, optimizer_list, grad_am
         else:
             loss_total.backward()
             if args.finetune:
-                images_emb_grad = images_emb_d.grad
-                images_emb.backward(images_emb_grad)
-                clip_grad_norm_(doc_image_model.parameters(), max_norm=5, norm_type=2)
-                image_optimizer.step()
+                vision_emb_grad = vision_emb_d.grad
+                vision_emb.backward(vision_emb_grad)
+                clip_grad_norm_(doc_vision_model.parameters(), max_norm=5, norm_type=2)
+                vision_optimizer.step()
             clip_grad_norm_(doc_text_model.parameters(), max_norm=5, norm_type=2)
             text_optimizer.step()
             fusion_optimizer.step()
@@ -328,7 +327,7 @@ def train_one_epoch(train_loader, model_list, loss_list, optimizer_list, grad_am
         video_fusion_optimizer.zero_grad()
         text_generation_optimizer.zero_grad()
         if args.finetune:
-            image_optimizer.zero_grad()
+            vision_optimizer.zero_grad()
 
         # measure accuracy and record loss
         avg_loss.update(loss.item(), 1)
@@ -365,12 +364,12 @@ def train_one_epoch(train_loader, model_list, loss_list, optimizer_list, grad_am
                     {
                         "epoch": "{}_{}".format(epoch + 1, i + 1),
                         "global_step": GLOBAL_STEP,
-                        "state_dict": doc_image_model.state_dict(),
+                        "state_dict": doc_vision_model.state_dict(),
                         "doc_text_model": doc_text_model.state_dict(),
                         "doc_fusion_model": doc_fusion_model.state_dict(),
                         "text_generation_model": text_generation_model.state_dict(),
                         "text_optimizer": text_optimizer.state_dict(),
-                        "image_optimizer": image_optimizer.state_dict(),
+                        "image_optimizer": vision_optimizer.state_dict(),
                         "fusion_optimizer": fusion_optimizer.state_dict(),
                         "video_fusion_optimizer": video_fusion_optimizer.state_dict(),
                         "text_generation_optimizer": text_generation_optimizer.state_dict(),
