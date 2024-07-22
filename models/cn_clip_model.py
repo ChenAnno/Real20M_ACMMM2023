@@ -1,8 +1,6 @@
 import torch
 import torch.nn as nn
-import cn_clip.clip as clip
 from cn_clip.clip import load_from_name
-from transformers import AutoTokenizer
 
 __all__ = [
     'Vitb16',
@@ -30,30 +28,6 @@ class ImageCLIP(nn.Module):
                     x = x.float()
             return x
 
-# class ImageCLIP(nn.Module):
-#     def __init__(self, clip_model_name, fp16=True, download_root=None):
-#         super(ImageCLIP, self).__init__()
-#         clip_model, _ = load_from_name(clip_model_name, device="cpu", download_root=download_root)
-#         self.visual_model = clip_model.visual.float()
-#         self.visual_model.set_grad_checkpointing()
-#         self.fp16 = fp16
-#         self.output_size = self.visual_model.output_dim
-#         self.vision_projection = clip_model.visual.proj
-#
-#     def forward(self, images, mode="global", mask_ratio=0.0):  # TODO 开mask
-#         with torch.cuda.amp.autocast(self.fp16):
-#             x_seq = self.visual_model(images, mode='local', mask_ratio=mask_ratio)
-#             x = x_seq[:, 0, :]
-#             x = x @ self.vision_projection
-#             if self.fp16:
-#                 x, x_seq = x.float(), x_seq.float()
-#             if mode == "global":
-#                 return x
-#             elif mode == "both":
-#                 return x, x_seq[:, 1:, :]
-#             else:
-#                 return x_seq[:, 1:, :]
-
 
 class TextCLIP(nn.Module):
     def __init__(self, clip_model_name, fp16=True, download_root=None):
@@ -67,7 +41,6 @@ class TextCLIP(nn.Module):
 
     def forward(self, text_inputs, mode="global"):
         with torch.cuda.amp.autocast(self.fp16):
-            # x = self.text_model(text_inputs["input_ids"])[0][:, 0, :]  # @ self.clip_model.text_projection
             x_seq = self.text_model(text_inputs["input_ids"])[0]  # [b, n, 768]
             x = x_seq[:, 0, :]
             x = x @ self.text_projection
@@ -89,14 +62,12 @@ def Vitb16(fp16):
     #     param.requires_grad = False
     # for param in clip_model.visual.parameters():
     #     param.requires_grad = True
-    clip_model = ImageCLIP(clip_model_name="ViT-B-16", fp16=fp16,
-                           download_root='/mnt/vision_retrieval/chenyanzhe/goods_se_train_code_base/pretrained')
+    clip_model = ImageCLIP(clip_model_name="ViT-B-16", fp16=fp16)
     return clip_model
 
 
 def RoBERTa_CLIP(fp16):
-    clip_model = TextCLIP(clip_model_name="ViT-B-16", fp16=fp16,
-                          download_root='/mnt/vision_retrieval/chenyanzhe/goods_se_train_code_base/pretrained')
+    clip_model = TextCLIP(clip_model_name="ViT-B-16", fp16=fp16)
     return clip_model
 
 
