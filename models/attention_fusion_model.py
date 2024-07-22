@@ -14,27 +14,10 @@ __all__ = [
 ]
 
 
-class VideoAttentionPooling(nn.Module):
-    def __init__(self, hidden_dim):
-        super(VideoAttentionPooling, self).__init__()
-        self.hidden_dim = hidden_dim
-        self.projection = nn.Sequential(
-            nn.Linear(hidden_dim, 64),
-            nn.ReLU(True),
-            nn.Linear(64, 1)
-        )
-
-    def forward(self, inputs):
-        # (B, T, H) -> (B, T, 1)
-        energy = self.projection(inputs)
-        weights = F.softmax(energy.squeeze(-1), dim=1)
-        # (B, T, H) * (B, T, 1) -> (B, H)
-        outputs = (inputs * weights.unsqueeze(-1)).sum(dim=1)
-
-        return outputs
-
-
 class AttentionPooling(nn.Module):
+    """
+    Used for fusing visual (video | image) and textual features
+    """
     def __init__(self, emb_dim, emb_num):
         super(AttentionPooling, self).__init__()
         self.emb_dim = emb_dim
@@ -54,54 +37,19 @@ class AttentionPooling(nn.Module):
         return outputs
 
 
-class QueryAttentionFusionModel(nn.Module):
-
-    def __init__(self, input_dims, emb_dim):
-        super(QueryAttentionFusionModel, self).__init__()
-        self.fc0 = nn.Linear(input_dims[0], emb_dim)
-
-    def forward(self, emb_list):
-        emb0 = F.normalize(self.fc0(emb_list[0]))
-        emb = emb0
-        return emb
-
-
-class Combiner(nn.Module):
-    def __init__(self, emb_dim=512, projection_dim=512 * 4, hidden_dim=512 * 8):
-        super(Combiner, self).__init__()
-        self.text_projection_layer = nn.Linear(emb_dim, projection_dim)
-        self.image_projection_layer = nn.Linear(emb_dim, projection_dim)
-
-        self.dropout1 = nn.Dropout(0.5)
-        self.dropout2 = nn.Dropout(0.5)
-
-        self.combiner_layer = nn.Linear(projection_dim * 2, hidden_dim)
-        self.output_layer = nn.Linear(hidden_dim, emb_dim)
-
-        self.dropout3 = nn.Dropout(0.5)
-        self.dynamic_scalar = nn.Sequential(nn.Linear(projection_dim * 2, hidden_dim), nn.ReLU(), nn.Dropout(0.5),
-                                            nn.Linear(hidden_dim, 1), nn.Sigmoid())
-
-    def forward(self, image_features, text_features):
-        text_projected_features = self.dropout1(F.relu(self.text_projection_layer(text_features)))
-        image_projected_features = self.dropout2(F.relu(self.image_projection_layer(image_features)))
-
-        raw_combined_features = torch.cat((text_projected_features, image_projected_features), -1)
-        combined_features = self.dropout3(F.relu(self.combiner_layer(raw_combined_features)))
-        dynamic_scalar = self.dynamic_scalar(raw_combined_features)
-        output = self.output_layer(combined_features) + dynamic_scalar * text_features + (
-                1 - dynamic_scalar) * image_features
-        return F.normalize(output, dim=-1)
-
-
 class DocAttentionFusionModel(nn.Module):
+    """
+    Main fusion model, includes 2 fusion modules
+    1. attention pooling: for vision (video | image) & text fusion
+    2. video attention: for vision (video frames | image) fusion
+    """
     def __init__(self, input_dims, emb_dim=512):
         super(DocAttentionFusionModel, self).__init__()
         # doc_text_dim, query_text_dim, doc_image_dim
 
         # The Combiner model performs better, but its runtime is too long. ABANDON
         # self.attention_pooling = Combiner(emb_dim=emb_dim, projection_dim=2 * emb_dim, hidden_dim=4 * emb_dim)
-        self.attention_pooling = AttentionPooling(emb_dim=512, emb_num=2)  # emb_dim改成512
+        self.attention_pooling = AttentionPooling(emb_dim=512, emb_num=2)
 
         # Frame fusion like X-CLIP performs much better than origin VideoAttentionPooling
         # Time cost also acceptable
@@ -131,6 +79,9 @@ class DocAttentionFusionModel(nn.Module):
 
 
 class VideoAttentionFusionModel(nn.Module):
+    """
+    video attention: for vision (video frames | image) fusion
+    """
     def __init__(self, input_dims, emb_dim=512):
         super(VideoAttentionFusionModel, self).__init__()
         # doc_text_dim, query_text_dim, doc_image_dim
@@ -148,6 +99,72 @@ class VideoAttentionFusionModel(nn.Module):
         text_emb = F.normalize(text_emb)
 
         return text_emb, video_emb
+
+
+class VideoAttentionPooling(nn.Module):
+    """
+    Original online solution, a simple fusion
+    """
+    def __init__(self, hidden_dim):
+        super(VideoAttentionPooling, self).__init__()
+        self.hidden_dim = hidden_dim
+        self.projection = nn.Sequential(
+            nn.Linear(hidden_dim, 64),
+            nn.ReLU(True),
+            nn.Linear(64, 1)
+        )
+
+    def forward(self, inputs):
+        # (B, T, H) -> (B, T, 1)
+        energy = self.projection(inputs)
+        weights = F.softmax(energy.squeeze(-1), dim=1)
+        # (B, T, H) * (B, T, 1) -> (B, H)
+        outputs = (inputs * weights.unsqueeze(-1)).sum(dim=1)
+
+        return outputs
+
+
+class QueryAttentionFusionModel(nn.Module):
+    """
+    Kuaishou's original online solution, linear layer for Query branch
+    """
+    def __init__(self, input_dims, emb_dim):
+        super(QueryAttentionFusionModel, self).__init__()
+        self.fc0 = nn.Linear(input_dims[0], emb_dim)
+
+    def forward(self, emb_list):
+        return F.normalize(self.fc0(emb_list[0]))
+
+
+class Combiner(nn.Module):
+    """
+    SOTA fusion model fuison Composed Retrieval
+    """
+    def __init__(self, emb_dim=512, projection_dim=512 * 4, hidden_dim=512 * 8):
+        super(Combiner, self).__init__()
+        self.text_projection_layer = nn.Linear(emb_dim, projection_dim)
+        self.image_projection_layer = nn.Linear(emb_dim, projection_dim)
+
+        self.dropout1 = nn.Dropout(0.5)
+        self.dropout2 = nn.Dropout(0.5)
+
+        self.combiner_layer = nn.Linear(projection_dim * 2, hidden_dim)
+        self.output_layer = nn.Linear(hidden_dim, emb_dim)
+
+        self.dropout3 = nn.Dropout(0.5)
+        self.dynamic_scalar = nn.Sequential(nn.Linear(projection_dim * 2, hidden_dim), nn.ReLU(), nn.Dropout(0.5),
+                                            nn.Linear(hidden_dim, 1), nn.Sigmoid())
+
+    def forward(self, image_features, text_features):
+        text_projected_features = self.dropout1(F.relu(self.text_projection_layer(text_features)))
+        image_projected_features = self.dropout2(F.relu(self.image_projection_layer(image_features)))
+
+        raw_combined_features = torch.cat((text_projected_features, image_projected_features), -1)
+        combined_features = self.dropout3(F.relu(self.combiner_layer(raw_combined_features)))
+        dynamic_scalar = self.dynamic_scalar(raw_combined_features)
+        output = self.output_layer(combined_features) + dynamic_scalar * text_features + (
+                1 - dynamic_scalar) * image_features
+        return F.normalize(output, dim=-1)
 
 
 if __name__ == "__main__":
