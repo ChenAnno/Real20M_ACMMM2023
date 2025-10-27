@@ -98,7 +98,7 @@ If you find our work helps, please cite our paper.
 
 ## Contact
 
-This repo is maintained by [Yanzhe Chen](https://github.com/ChenAnno). Questions and discussions are welcome via `chenyanzhe@stu.pku.edu.cn`.
+This repo is maintained by [Yanzhe Chen](https://github.com/ChenAnno). Questions and discussions are welcome via `chenyanzhe@u.nus.edu`.
 
 ## Acknowledgements
 
